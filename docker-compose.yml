@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  spanner-emulator:
+    image: gcr.io/cloud-spanner-emulator/emulator:latest
+    container_name: spanner-emulator
+    ports:
+      - "9010:9010" # gRPC port
+      - "9020:9020" # REST port
+
+  spanner-init:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine
+    container_name: spanner-init
+    depends_on:
+      - spanner-emulator
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for Spanner emulator...' &&
+      sleep 5 &&
+      gcloud config set auth/disable_credentials true &&
+      gcloud config set project local-project &&
+      gcloud config set api_endpoint_overrides/spanner http://spanner-emulator:9020/ &&
+      gcloud spanner instances create local-instance --config=emulator-config --description='Local' --nodes=1 &&
+      gcloud spanner databases create local-db --instance=local-instance &&
+      echo 'Spanner initialized!'
+      "
